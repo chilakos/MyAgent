@@ -4,6 +4,10 @@ Run with:
     python examples/demo.py
 """
 
+import sys
+import os
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from langchain_core.messages import HumanMessage, AIMessage
 from src.core.llm import create_llm_provider
 from src.core.config import settings
