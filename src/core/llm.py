@@ -141,21 +141,82 @@ class OpenAIProvider(LLMProvider):
         }
 
 
+class GeminiProvider(LLMProvider):
+    """Google Gemini LLM provider for cloud-based models."""
+
+    def __init__(self, api_key: str, model: str):
+        """Initialize Gemini provider.
+
+        Args:
+            api_key: Google Gemini API key.
+            model: Model name (e.g., gemini-1.5-flash, gemini-1.5-pro).
+        """
+        self.api_key = api_key
+        self.model = model
+        self.client = None
+
+    def initialize(self) -> None:
+        """Initialize Gemini client."""
+        if not self.api_key:
+            raise ValueError("GEMINI_API_KEY not set")
+
+        try:
+            from langchain_google_genai import ChatGoogleGenerativeAI
+
+            self.client = ChatGoogleGenerativeAI(
+                model=self.model,
+                google_api_key=self.api_key,
+                temperature=0.7,
+            )
+        except ImportError as e:
+            raise ImportError("langchain-google-genai not installed. Install with: pip install langchain-google-genai")
+        except Exception as e:
+            raise RuntimeError(f"Failed to initialize Gemini: {e}")
+
+    def chat(self, messages: list[BaseMessage], **kwargs: Any) -> str:
+        """Get response from Gemini.
+
+        Args:
+            messages: List of messages.
+            **kwargs: Additional parameters.
+
+        Returns:
+            Response text from Gemini.
+        """
+        if not self.client:
+            self.initialize()
+
+        response = self.client.invoke(messages, **kwargs)
+        return response.content
+
+    def get_model_info(self) -> dict[str, Any]:
+        """Get Gemini model information."""
+        return {
+            "provider": "gemini",
+            "model": self.model,
+            "type": "cloud",
+        }
+
+
 def create_llm_provider(
     provider_type: str = "ollama",
     ollama_base_url: Optional[str] = None,
     ollama_model: Optional[str] = None,
     openai_api_key: Optional[str] = None,
     openai_model: Optional[str] = None,
+    gemini_api_key: Optional[str] = None,
+    gemini_model: Optional[str] = None,
 ) -> LLMProvider:
     """Factory function to create LLM provider.
 
     Args:
-        provider_type: Type of provider ('ollama' or 'openai').
+        provider_type: Type of provider ('ollama', 'openai', or 'gemini').
         ollama_base_url: Ollama base URL (used if provider_type='ollama').
         ollama_model: Ollama model name (used if provider_type='ollama').
         openai_api_key: OpenAI API key (used if provider_type='openai').
         openai_model: OpenAI model name (used if provider_type='openai').
+        gemini_api_key: Google Gemini API key (used if provider_type='gemini').
+        gemini_model: Google Gemini model name (used if provider_type='gemini').
 
     Returns:
         Initialized LLM provider instance.
@@ -171,6 +232,10 @@ def create_llm_provider(
         if not openai_api_key or not openai_model:
             raise ValueError("openai_api_key and openai_model required for OpenAI provider")
         provider = OpenAIProvider(api_key=openai_api_key, model=openai_model)
+    elif provider_type.lower() == "gemini":
+        if not gemini_api_key or not gemini_model:
+            raise ValueError("gemini_api_key and gemini_model required for Gemini provider")
+        provider = GeminiProvider(api_key=gemini_api_key, model=gemini_model)
     else:
         raise ValueError(f"Unknown LLM provider: {provider_type}")
 
