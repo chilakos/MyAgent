@@ -1,113 +1,208 @@
-# Local Chatbot/Copilot
+# Local Chatbot/Personal Agent
 
-A local Python chatbot built with LangChain, Ollama/OpenAI, and FastAPI. This project is designed to practice Git workflows (branching, PRs) and build comprehensive unit tests.
+A local Python AI agent built with LangChain, Ollama/OpenAI/Gemini, and SQLite. Features conversation memory, habit tracking, and integrated daily check-ins for personal productivity.
 
-## Features
+## ✨ Features
 
-- **Dual LLM Support**: Use Ollama locally (free, offline) or OpenAI API (production-ready)
-- **CLI Chat Interface**: Simple command-line chatbot
-- **FastAPI Web API**: REST API endpoints for chat
-- **Conversation Memory**: Persistent conversation history
-- **RAG Support** (Planned): Document retrieval and context injection
-- **Comprehensive Tests**: Unit and integration tests with mocking
+- **Multi-LLM Support**: Ollama (local, free, offline) | OpenAI (cloud, production) | Gemini (cloud)
+- **Conversation Memory**: SQLite-based persistent conversations with 6 conversation types
+- **Daily Habit Tracking**: Track 5 habits with completion %, streaks, and weekly/monthly reports
+- **Interactive CLI**: Chat interface with auto-save and conversation management
+- **Comprehensive Tests**: 19 unit tests for memory module
+- **FastAPI Web API** (Planned): REST endpoints for chat and habit tracking
 
-## Project Structure
+## 📊 Current Features
+
+### Conversation Types
+- `daily_checkin` - Daily reflection and goals
+- `weekly_review` - Weekly progress assessment
+- `routine` - Habit and routine tracking
+- `finance` - Budget and expense discussion
+- `goals` - Long-term goal planning
+- `general` - Open conversations
+
+### Habit Tracking
+Track completion with visual progress:
+```
+✓ 45 min workout
+   4/7 days | ████████░░ 71%
+   🔥 2 day streak
+```
+
+Habits are configured and easily customizable:
+1. 45 min workout (or minimum 20 min)
+2. 10 min walk after meals
+3. Eat clean; no junk
+4. Last food ≥4 hrs before bed
+5. 30 min reading
+
+## 📁 Project Structure
 
 ```
 .
-├── src/
-│   ├── core/           # LLM integration, config, embeddings
-│   ├── api/            # FastAPI routes and models
-│   ├── agents/         # Chatbot logic
-│   └── utils/          # Helpers and logging
-├── tests/
-│   ├── unit/           # Fast, mocked unit tests
-│   ├── integration/    # Slow, real API tests
-│   └── conftest.py     # Shared fixtures
-├── requirements.txt    # Core dependencies
-├── requirements-dev.txt # Dev/test dependencies
-└── pytest.ini          # Test configuration
+├── src/core/
+│   ├── llm.py           # LLM abstraction (Ollama/OpenAI/Gemini)
+│   ├── memory.py        # SQLite conversation & habit persistence
+│   ├── habits.py        # Habit tracker configuration
+│   └── config.py        # Settings and environment
+├── examples/
+│   └── demo.py          # Interactive chatbot with habits
+├── tests/unit/
+│   └── test_memory.py   # 19 memory tests
+├── data/
+│   └── conversations.db # SQLite database
+└── .env                 # Configuration (Ollama/OpenAI/Gemini)
 ```
 
-## Setup
+## 🚀 Quick Start
 
-1. **Clone and enter the repo**
-   ```bash
-   cd MyAgent
-   ```
-
-2. **Create virtual environment**
-   ```bash
-   python -m venv venv
-   source venv/Scripts/activate  # Windows: venv\Scripts\activate
-   ```
-
-3. **Install dependencies**
-   ```bash
-   pip install -r requirements-dev.txt
-   ```
-
-4. **Set up environment**
-   ```bash
-   cp .env.example .env
-   # Edit .env with your configuration
-   ```
-
-5. **Install Ollama (optional, for local model)**
-   - Download from https://ollama.ai
-   - Pull a model: `ollama pull mistral`
-   - Keep Ollama running: `ollama serve`
-
-## Usage
-
-### Run Tests
+### 1. Clone and Setup
 ```bash
-# All tests
+cd MyAgent
+python -m venv venv
+source venv/Scripts/activate  # Windows: venv\Scripts\activate
+pip install -r requirements-dev.txt
+```
+
+### 2. Choose Your LLM
+
+**Option A: Local (Ollama - Recommended for learning)**
+```bash
+# Install Ollama from https://ollama.ai
+# Pull a model
+ollama pull mistral
+
+# In another terminal, start Ollama server
+ollama serve
+
+# Run agent
+python examples/demo.py
+```
+
+**Option B: OpenAI (Production ready)**
+```bash
+# Set in .env
+LLM_PROVIDER=openai
+OPENAI_API_KEY=sk-...
+OPENAI_MODEL=gpt-4o-mini
+
+python examples/demo.py
+```
+
+**Option C: Gemini (Cloud)**
+```bash
+# Set in .env
+LLM_PROVIDER=gemini
+GEMINI_API_KEY=...
+GEMINI_MODEL=gemini-2.0-flash
+
+python examples/demo.py
+```
+
+### 3. Use the Agent
+
+```
+You: hello
+Assistant: [Response from LLM]
+
+Available commands:
+  'habits'      → Log daily habits
+  'stats'       → View weekly habit summary
+  'new <type>'  → Start new conversation (daily_checkin, weekly_review, etc)
+  'list'        → Show recent conversations
+  'quit'        → Exit
+```
+
+## 💾 Database Schema
+
+### conversations table
+- `id` (UUID) - Unique conversation ID
+- `type` - Conversation type (daily_checkin, routine, etc)
+- `title` - User-friendly title
+- `messages` - JSON array of HumanMessage/AIMessage
+- `created_at`, `updated_at` - Timestamps
+- `metadata` - Custom metadata (JSON)
+
+### habit_logs table
+- `id` (UUID) - Unique log entry ID
+- `habit_id` - Reference to habit
+- `logged_date` - YYYY-MM-DD
+- `completed` - Boolean
+- `notes` - Optional user notes
+- `created_at` - Timestamp
+
+## 📊 Testing
+
+```bash
+# Run all tests
 pytest
 
-# Unit tests only (fast)
-pytest -m "not slow"
+# Unit tests only
+pytest tests/unit/
 
-# With coverage
-pytest --cov=src --cov-report=html
+# Test coverage
+pytest --cov=src tests/
+
+# Run specific test
+pytest tests/unit/test_memory.py::TestConversationManager::test_create_conversation
 ```
 
-### CLI Chatbot (coming in feature/cli-chatbot)
+Current: **19 passing tests** for memory module
+
+## 🔄 Git Workflow
+
+- **main**: Production-ready
+- **develop**: Integration branch
+- **feature/***: Feature branches
+
+All changes go through `develop` branch before merging to `main`.
+
+## 🗺️ Roadmap
+
+- ✅ SQLite memory system with 6 conversation types
+- ✅ LLM abstraction (Ollama, OpenAI, Gemini)
+- ✅ Daily habit tracking with statistics
+- ✅ Interactive CLI with auto-save
+- 🔄 Weekly/monthly reports with AI insights
+- 🔄 FastAPI web interface
+- 🔄 Goal tracking and progress graphs
+- 🔄 Financial tracking integration
+
+## 📝 Configuration
+
+Create `.env` file in project root:
+
 ```bash
-python -m src.cli.main
+# LLM Provider (ollama, openai, or gemini)
+LLM_PROVIDER=ollama
+
+# Ollama (local)
+OLLAMA_BASE_URL=http://localhost:11434
+OLLAMA_MODEL=mistral
+
+# OpenAI (optional)
+OPENAI_API_KEY=sk-...
+OPENAI_MODEL=gpt-4o-mini
+
+# Gemini (optional)
+GEMINI_API_KEY=...
+GEMINI_MODEL=gemini-2.0-flash
+
+# API Server
+API_HOST=0.0.0.0
+API_PORT=8000
+DEBUG=false
 ```
 
-### FastAPI Server (coming in feature/api-endpoints)
-```bash
-uvicorn src.api.main:app --reload
-```
+## 🛠️ Technologies
 
-## Git Workflow
+- **LangChain**: LLM framework
+- **Ollama**: Local inference
+- **SQLite3**: Lightweight database
+- **Pydantic**: Data validation
+- **pytest**: Testing framework
+- **FastAPI**: REST API (planned)
 
-This project practices Git branching and PR workflows:
-
-- **main**: Production-ready code
-- **develop**: Integration branch for features
-- **feature/*****: Individual feature branches
-
-Create a feature branch, make changes, write tests, commit, and open a PR to `develop`.
-
-## Testing Strategy
-
-- **Unit Tests**: Mocked LLM calls, fast feedback
-- **Integration Tests**: Marked with `@pytest.mark.slow`, real API calls
-- **Coverage Target**: 70%+ on business logic
-
-See [tests/conftest.py](tests/conftest.py) for shared fixtures.
-
-## Roadmap
-
-1. ✅ Project setup with testing foundation
-2. 🔄 LLM abstraction (Ollama + OpenAI)
-3. 🔄 CLI chatbot with memory
-4. 🔄 FastAPI web API
-5. 🔄 RAG with ChromaDB
-
-## License
+## 📄 License
 
 MIT
