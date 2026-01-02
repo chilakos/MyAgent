@@ -63,6 +63,25 @@ class ConversationManager:
                 CREATE INDEX IF NOT EXISTS idx_created 
                 ON conversations(created_at DESC)
             """)
+            # Habit tracking table
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS habit_logs (
+                    id TEXT PRIMARY KEY,
+                    habit_id TEXT NOT NULL,
+                    logged_date TEXT NOT NULL,
+                    completed BOOLEAN NOT NULL,
+                    notes TEXT,
+                    created_at TEXT NOT NULL
+                )
+            """)
+            conn.execute("""
+                CREATE INDEX IF NOT EXISTS idx_habit_date 
+                ON habit_logs(habit_id, logged_date DESC)
+            """)
+            conn.execute("""
+                CREATE INDEX IF NOT EXISTS idx_logged_date 
+                ON habit_logs(logged_date DESC)
+            """)
             conn.commit()
         finally:
             conn.close()
@@ -324,6 +343,211 @@ class ConversationManager:
     def get_week_review(self) -> Optional[dict[str, Any]]:
         """Get latest weekly review conversation."""
         return self.get_latest_conversation(ConversationType.WEEKLY_REVIEW)
+
+    # Habit tracking methods
+    
+    def log_habit(
+        self,
+        habit_id: str,
+        completed: bool,
+        logged_date: str = None,
+        notes: str = None,
+    ) -> str:
+        """Log a habit completion for a specific date.
+        
+        Args:
+            habit_id: ID of the habit to log
+            completed: Whether the habit was completed (True/False)
+            logged_date: Date to log for (ISO format, defaults to today)
+            notes: Optional notes about the habit
+            
+        Returns:
+            Log entry ID
+        """
+        if logged_date is None:
+            logged_date = datetime.utcnow().strftime("%Y-%m-%d")
+        
+        log_id = str(uuid.uuid4())
+        created_at = datetime.utcnow().isoformat()
+        
+        with sqlite3.connect(self.db_path) as conn:
+            conn.execute(
+                """
+                INSERT INTO habit_logs
+                (id, habit_id, logged_date, completed, notes, created_at)
+                VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                (log_id, habit_id, logged_date, completed, notes, created_at),
+            )
+            conn.commit()
+        
+        return log_id
+    
+    def get_habit_for_date(self, habit_id: str, date: str) -> Optional[dict[str, Any]]:
+        """Get habit log for a specific date.
+        
+        Args:
+            habit_id: ID of the habit
+            date: Date in ISO format (YYYY-MM-DD)
+            
+        Returns:
+            Habit log dict or None if not found
+        """
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.execute(
+                """
+                SELECT id, habit_id, logged_date, completed, notes, created_at
+                FROM habit_logs
+                WHERE habit_id = ? AND logged_date = ?
+                """,
+                (habit_id, date),
+            )
+            row = cursor.fetchone()
+        
+        if not row:
+            return None
+        
+        return {
+            "id": row[0],
+            "habit_id": row[1],
+            "logged_date": row[2],
+            "completed": bool(row[3]),
+            "notes": row[4],
+            "created_at": row[5],
+        }
+    
+    def get_habits_for_date(self, date: str) -> list[dict[str, Any]]:
+        """Get all habit logs for a specific date.
+        
+        Args:
+            date: Date in ISO format (YYYY-MM-DD)
+            
+        Returns:
+            List of habit logs
+        """
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.execute(
+                """
+                SELECT id, habit_id, logged_date, completed, notes, created_at
+                FROM habit_logs
+                WHERE logged_date = ?
+                ORDER BY created_at DESC
+                """,
+                (date,),
+            )
+            rows = cursor.fetchall()
+        
+        return [
+            {
+                "id": row[0],
+                "habit_id": row[1],
+                "logged_date": row[2],
+                "completed": bool(row[3]),
+                "notes": row[4],
+                "created_at": row[5],
+            }
+            for row in rows
+        ]
+    
+    def get_habit_stats(self, habit_id: str, days: int = 7) -> dict[str, Any]:
+        """Get habit statistics for the past N days.
+        
+        Args:
+            habit_id: ID of the habit
+            days: Number of days to look back (default: 7 for weekly)
+            
+        Returns:
+            Stats dict with completion info
+        """
+        from datetime import timedelta
+        
+        today = datetime.utcnow().date()
+        start_date = today - timedelta(days=days - 1)
+        
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.execute(
+                """
+                SELECT logged_date, completed
+                FROM habit_logs
+                WHERE habit_id = ? AND logged_date >= ?
+                ORDER BY logged_date DESC
+                """,
+                (habit_id, start_date.isoformat()),
+            )
+            rows = cursor.fetchall()
+        
+        completed_count = sum(1 for row in rows if row[1])
+        total_count = len(rows)
+        
+        # Calculate streak
+        streak = 0
+        if rows and rows[0][1]:  # If most recent is completed
+            for row in rows:
+                if row[1]:
+                    streak += 1
+                else:
+                    break
+        
+        return {
+            "habit_id": habit_id,
+            "days_tracked": days,
+            "completed": completed_count,
+            "total": total_count,
+            "completion_rate": (completed_count / days * 100) if days > 0 else 0,
+            "current_streak": streak,
+            "logs": rows,
+        }
+    
+    def get_all_habits_stats(self, days: int = 7) -> dict[str, Any]:
+        """Get statistics for all habits.
+        
+        Args:
+            days: Number of days to look back (default: 7 for weekly)
+            
+        Returns:
+            Dict with stats for each habit
+        """
+        from src.core.habits import HabitTracker
+        
+        stats = {}
+        for habit in HabitTracker.get_all_habits():
+            stats[habit.id] = self.get_habit_stats(habit.id, days=days)
+        
+        return stats
+    
+    def get_habit_summary(self, days: int = 7) -> str:
+        """Get formatted summary of habits for display.
+        
+        Args:
+            days: Number of days to look back
+            
+        Returns:
+            Formatted string with habit summary
+        """
+        from src.core.habits import HabitTracker
+        
+        all_stats = self.get_all_habits_stats(days=days)
+        
+        lines = []
+        lines.append(f"\n📊 Habit Summary - Last {days} days")
+        lines.append("=" * 50)
+        
+        for habit in HabitTracker.get_all_habits():
+            stats = all_stats[habit.id]
+            completed = stats["completed"]
+            rate = stats["completion_rate"]
+            streak = stats["current_streak"]
+            
+            status = "✓" if rate >= 80 else "✗" if rate < 50 else "~"
+            bar = "█" * int(rate / 10) + "░" * (10 - int(rate / 10))
+            
+            lines.append(f"\n{status} {habit.name}")
+            lines.append(f"   {completed}/{stats['total']} days | {bar} {rate:.0f}%")
+            if streak > 0:
+                lines.append(f"   🔥 {streak} day streak")
+        
+        lines.append("\n" + "=" * 50)
+        return "\n".join(lines)
 
     @staticmethod
     def _message_to_dict(message: BaseMessage) -> dict[str, Any]:

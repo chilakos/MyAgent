@@ -12,6 +12,7 @@ from langchain_core.messages import HumanMessage, AIMessage
 from src.core.llm import create_llm_provider
 from src.core.config import settings
 from src.core.memory import ConversationManager, ConversationType
+from src.core.habits import HabitTracker
 
 
 def main():
@@ -80,6 +81,8 @@ def main():
     # Check for existing conversation or start new one
     print("\n[Options]")
     print("  'new <type>' - Start new conversation (daily_checkin, weekly_review, routine, finance, goals, general)")
+    print("  'habits' - Log daily habits")
+    print("  'stats' - View habit statistics")
     print("  'list' - Show recent conversations")
     print("  'quit' - Exit\n")
 
@@ -113,6 +116,41 @@ def main():
                 print()
             else:
                 print("No conversations yet.\n")
+            continue
+
+        if user_input.lower() == "habits":
+            print("\n" + HabitTracker.list_habits())
+            print("\nLog habit (number or 'back' to cancel): ", end="")
+            habit_choice = input().strip().lower()
+            
+            if habit_choice == "back":
+                print()
+                continue
+            
+            try:
+                habit_idx = int(habit_choice) - 1
+                habit = HabitTracker.HABITS[habit_idx]
+                
+                print(f"\nDid you complete '{habit.name}' today? (yes/no): ", end="")
+                completed = input().strip().lower() in ("yes", "y", "1")
+                
+                notes = None
+                if completed:
+                    print(f"Notes (or 'skip'): ", end="")
+                    notes = input().strip()
+                    if notes.lower() == "skip":
+                        notes = None
+                
+                memory_manager.log_habit(habit.id, completed, notes=notes)
+                status = "✓ Logged" if completed else "✗ Logged"
+                print(f"\n{status}\n")
+            except (ValueError, IndexError):
+                print("Invalid choice\n")
+            continue
+
+        if user_input.lower() == "stats":
+            print(memory_manager.get_habit_summary(days=7))
+            print()
             continue
 
         if user_input.lower().startswith("new "):
