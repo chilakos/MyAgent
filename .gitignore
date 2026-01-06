@@ -58,3 +58,5 @@ pdf_workspace/
 # Demo and test files
 demo_output/
 test_doc*.pdf
+pdfs_input/
+pdfs_output/
