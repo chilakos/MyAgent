@@ -7,8 +7,9 @@ A local Python AI agent built with LangChain, Ollama/OpenAI/Gemini, and SQLite. 
 - **Multi-LLM Support**: Ollama (local, free, offline) | OpenAI (cloud, production) | Gemini (cloud)
 - **Conversation Memory**: SQLite-based persistent conversations with 6 conversation types
 - **Daily Habit Tracking**: Track 5 habits with completion %, streaks, and weekly/monthly reports
+- **PDF Agent**: Autonomous PDF operations (merge, split, extract text, rotate pages) with natural language interface
 - **Interactive CLI**: Chat interface with auto-save and conversation management
-- **Comprehensive Tests**: 19 unit tests for memory module
+- **Comprehensive Tests**: 30+ unit tests for core functionality
 - **FastAPI Web API** (Planned): REST endpoints for chat and habit tracking
 
 ## 📊 Current Features
@@ -36,22 +37,52 @@ Habits are configured and easily customizable:
 4. Last food ≥4 hrs before bed
 5. 30 min reading
 
+### PDF Agent
+Autonomous PDF operations with AI:
+```bash
+python examples/demo_pdf_agent.py
+```
+
+Capabilities:
+- **Merge PDFs**: Combine multiple documents into one
+- **Split PDFs**: Divide by page count or custom ranges
+- **Extract Text**: Advanced text extraction with pdfplumber
+- **Extract Pages**: Create new PDFs from specific pages
+- **Rotate Pages**: Rotate by 90/180/270 degrees
+- **Get Metadata**: Retrieve PDF info (author, page count, etc.)
+
+Natural language interface:
+```
+You: Merge report1.pdf and report2.pdf into final.pdf
+Agent: Successfully merged 2 PDFs. Output: ./pdf_workspace/final.pdf
+```
+
+See [PDF Agent Documentation](docs/PDF_AGENT.md) for complete guide.
+
 ## 📁 Project Structure
 
 ```
 .
-├── src/core/
-│   ├── llm.py           # LLM abstraction (Ollama/OpenAI/Gemini)
-│   ├── memory.py        # SQLite conversation & habit persistence
-│   ├── habits.py        # Habit tracker configuration
-│   └── config.py        # Settings and environment
+├── src/
+│   ├── core/
+│   │   ├── llm.py           # LLM abstraction (Ollama/OpenAI/Gemini)
+│   │   ├── memory.py        # SQLite conversation & habit persistence
+│   │   ├── habits.py        # Habit tracker configuration
+│   │   └── config.py        # Settings and environment
+│   └── agents/
+│       ├── pdf_agent.py     # PDF operations agent
+│       └── pdf_tools.py     # LangChain PDF tools
 ├── examples/
-│   └── demo.py          # Interactive chatbot with habits
+│   ├── demo.py              # Interactive chatbot with habits
+│   └── demo_pdf_agent.py    # PDF agent demo
 ├── tests/unit/
-│   └── test_memory.py   # 19 memory tests
+│   ├── test_memory.py       # Memory system tests
+│   └── test_pdf_agent.py    # PDF agent tests (30 tests)
+├── docs/
+│   └── PDF_AGENT.md         # PDF agent documentation
 ├── data/
-│   └── conversations.db # SQLite database
-└── .env                 # Configuration (Ollama/OpenAI/Gemini)
+│   └── conversations.db     # SQLite database
+└── .env                     # Configuration (Ollama/OpenAI/Gemini)
 ```
 
 ## 🚀 Quick Start
@@ -140,6 +171,9 @@ pytest
 # Unit tests only
 pytest tests/unit/
 
+# Test specific module
+pytest tests/unit/test_pdf_agent.py -v
+
 # Test coverage
 pytest --cov=src tests/
 
@@ -147,7 +181,7 @@ pytest --cov=src tests/
 pytest tests/unit/test_memory.py::TestConversationManager::test_create_conversation
 ```
 
-Current: **19 passing tests** for memory module
+Current: **30+ passing tests** for memory and PDF agent modules
 
 ## 🔄 Git Workflow
 
@@ -163,6 +197,7 @@ All changes go through `develop` branch before merging to `main`.
 - ✅ LLM abstraction (Ollama, OpenAI, Gemini)
 - ✅ Daily habit tracking with statistics
 - ✅ Interactive CLI with auto-save
+- ✅ PDF Agent with autonomous operations
 - 🔄 Weekly/monthly reports with AI insights
 - 🔄 FastAPI web interface
 - 🔄 Goal tracking and progress graphs
