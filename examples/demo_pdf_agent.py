@@ -17,7 +17,13 @@ from src.agents.pdf_agent import PDFAgent
 from src.agents.pdf_tools import create_pdf_tools
 from src.core.llm import create_llm_provider
 from src.core.config import Settings
-from langchain.agents import AgentExecutor, create_tool_calling_agent
+
+try:
+    from langgraph.prebuilt import create_react_agent
+    USE_LANGGRAPH = True
+except ImportError:
+    USE_LANGGRAPH = False
+
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.messages import HumanMessage, AIMessage
 
@@ -218,15 +224,8 @@ def run_interactive_mode():
         # Create PDF tools
         pdf_tools = create_pdf_tools(workspace_dir="./pdf_workspace")
 
-        # Create agent
-        prompt = create_agent_prompt()
-        agent = create_tool_calling_agent(llm.chat_model, pdf_tools, prompt)
-        agent_executor = AgentExecutor(
-            agent=agent,
-            tools=pdf_tools,
-            verbose=True,
-            handle_parsing_errors=True
-        )
+        # Create agent using langgraph
+        agent_executor = create_react_agent(llm.chat_model, pdf_tools)
 
         print(f"✓ Agent initialized with {settings.llm_provider} ({llm.get_model_info()['model']})")
         print(f"✓ Workspace: ./pdf_workspace/")
@@ -256,17 +255,18 @@ def run_interactive_mode():
                 # Process with agent
                 print("\nAgent: ", end="", flush=True)
 
-                response = agent_executor.invoke({
-                    "input": user_input,
-                    "chat_history": chat_history
-                })
+                # Add user message to history
+                chat_history.append(HumanMessage(content=user_input))
 
-                output = response.get("output", "No response")
+                # Invoke agent with messages
+                response = agent_executor.invoke({"messages": chat_history})
+
+                # Get the last message from the agent
+                output = response["messages"][-1].content
                 print(output)
                 print()
 
-                # Update chat history
-                chat_history.append(HumanMessage(content=user_input))
+                # Update chat history with agent response
                 chat_history.append(AIMessage(content=output))
 
                 # Keep history manageable

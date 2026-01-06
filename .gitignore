@@ -53,3 +53,4 @@ Thumbs.db
 # Project specific
 chroma_db/
 .cache/
+pdf_workspace/
