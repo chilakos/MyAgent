@@ -54,3 +54,7 @@ Thumbs.db
 chroma_db/
 .cache/
 pdf_workspace/
+
+# Demo and test files
+demo_output/
+test_doc*.pdf
